@@ -1,0 +1,39 @@
+# Lore Admin next to a Lore server.
+#   LORE_ADMIN_PASSWORD=change-me docker compose up -d     →  http://<host>:4800
+# Put it behind a TLS reverse proxy before exposing it beyond your LAN, and set
+# LORE_ADMIN_SECURE_COOKIE=1 / LORE_ADMIN_TRUST_PROXY=1 there.
+services:
+  lore-admin:
+    build: .
+    image: lore-admin:latest
+    restart: unless-stopped
+    ports:
+      - "4800:4800"
+    volumes:
+      - lore-admin-data:/data
+    environment:
+      # One admin account ("admin"), or several: LORE_ADMIN_USERS: "alice:pw1,bob:scrypt$$<salt>$$<hash>"
+      # (`$` must be written `$$` in compose files; hash with `node scripts/hash-password.mjs <pw>`).
+      LORE_ADMIN_PASSWORD: ${LORE_ADMIN_PASSWORD:?set LORE_ADMIN_PASSWORD}
+      # Pre-configured servers (read-only in the UI). More can be added in the UI.
+      LORE_ADMIN_SERVERS: "Studio=lore://loreserver:41337|http://loreserver:41339/health_check"
+      # Identity recorded on changes made through the console (unauthenticated servers),
+      # or a token for authenticated ones: LORE_ADMIN_SERVER_TOKEN
+      LORE_ADMIN_SERVER_IDENTITY: "lore-admin"
+    depends_on:
+      - loreserver
+
+  # Optional: a single-node Lore server with persistent storage. Remove if you already run one.
+  loreserver:
+    image: ghcr.io/epicgames/lore/loreserver:latest
+    restart: unless-stopped
+    ports:
+      - "41337:41337/tcp"
+      - "41337:41337/udp"
+      - "41339:41339"
+    volumes:
+      - lore-store:/var/lib/lore
+
+volumes:
+  lore-admin-data:
+  lore-store:

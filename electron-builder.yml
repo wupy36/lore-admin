@@ -1,0 +1,50 @@
+# Desktop packaging. `pnpm dist:win` (Windows NSIS installer + portable exe) or
+# `pnpm dist:dir` (unpacked app for the current OS). Same layout rules as lore-desktop.
+appId: dev.lore.admin
+productName: Lore Admin
+copyright: Copyright © lore-admin contributors
+directories:
+  output: dist
+  buildResources: build
+files:
+  # out/desktop/main.cjs bundles the server; out/web is the UI it serves.
+  - out/desktop/**
+  - out/web/**
+  - package.json
+  - "!node_modules/koffi/build/koffi/!(win32_x64|linux_x64|darwin_arm64)/**"
+  - "!node_modules/koffi/src/**"
+  - "!node_modules/koffi/vendor/**"
+# koffi must LoadLibrary a real file: the SDK maps app.asar/node_modules/@lore-vcs/sdk*
+# to app.asar.unpacked itself (needs the hoisted layout from .npmrc).
+asarUnpack:
+  - node_modules/@lore-vcs/**
+  - node_modules/koffi/**
+npmRebuild: false
+publish: null
+win:
+  files:
+    - "!**/node_modules/@lore-vcs/sdk-amd64-unknown-linux/**"
+    - "!**/node_modules/@lore-vcs/sdk-arm64-*/**"
+    - "!node_modules/koffi/build/koffi/!(win32_x64)/**"
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  signAndEditExecutable: false
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Lore Admin
+  artifactName: LoreAdmin-${version}-setup-x64.${ext}
+portable:
+  artifactName: LoreAdmin-${version}-portable-x64.${ext}
+linux:
+  files:
+    - "!**/node_modules/@lore-vcs/sdk-amd64-unknown-windows/**"
+    - "!node_modules/koffi/build/koffi/!(linux_x64)/**"
+  target: [dir]
+  category: Development

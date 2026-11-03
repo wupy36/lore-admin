@@ -1,0 +1,77 @@
+{
+  "name": "lore-admin",
+  "productName": "Lore Admin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Essentials-only admin console for Lore servers: web (Docker) and desktop",
+  "license": "MIT",
+  "main": "./out/desktop/main.cjs",
+  "scripts": {
+    "build": "vite build && node scripts/build-node.mjs",
+    "build:web": "vite build",
+    "build:node": "node scripts/build-node.mjs",
+    "dev:web": "vite",
+    "dev:server": "node scripts/build-node.mjs && node out/server/main.cjs --mock --no-auth --port 4800",
+    "start": "node out/server/main.cjs",
+    "start:mock": "node out/server/main.cjs --mock --no-auth",
+    "desktop": "electron .",
+    "desktop:mock": "electron . --mock",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:it": "vitest run -c vitest.it.config.ts",
+    "dist:win": "pnpm build && electron-builder --win nsis portable --x64 --publish never",
+    "dist:win:native": "pnpm build && electron-builder --win nsis portable --x64 --publish never -c.win.signAndEditExecutable=true",
+    "dist:dir": "pnpm build && electron-builder --dir --publish never"
+  },
+  "dependencies": {
+    "@lore-vcs/sdk": "0.12.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.16.0",
+    "@tanstack/react-query": "5.62.0",
+    "@tanstack/react-virtual": "3.10.9",
+    "@testing-library/dom": "10.4.0",
+    "@testing-library/react": "16.1.0",
+    "@types/node": "20.17.9",
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "@vitejs/plugin-react": "4.3.4",
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8",
+    "esbuild": "0.21.5",
+    "eslint": "9.16.0",
+    "eslint-plugin-react-hooks": "5.1.0",
+    "globals": "15.13.0",
+    "jsdom": "25.0.1",
+    "playwright": "1.49.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "typescript": "5.7.2",
+    "typescript-eslint": "8.18.0",
+    "vite": "5.4.11",
+    "vitest": "2.1.8",
+    "zod": "3.23.8",
+    "zustand": "5.0.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "esbuild",
+      "koffi"
+    ],
+    "supportedArchitectures": {
+      "os": [
+        "current",
+        "win32"
+      ],
+      "cpu": [
+        "current",
+        "x64"
+      ]
+    }
+  },
+  "author": "lore-admin contributors",
+  "homepage": "https://github.com/wupy36/lore-admin",
+  "packageManager": "pnpm@10.28.0"
+}

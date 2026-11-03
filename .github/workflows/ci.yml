@@ -1,0 +1,92 @@
+# Linux: checks + Docker image. Windows: checks, integration tests against a real
+# Lore demo server, desktop installer + portable exe, packaged-app smoke test.
+name: ci
+
+on:
+  push:
+    branches: [main, "claude/**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 10.28.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build
+      - name: Docker image
+        run: docker build -t lore-admin:ci .
+      - name: Container starts and is healthy
+        run: |
+          docker run -d --name la -p 4800:4800 -e LORE_ADMIN_PASSWORD=ci -e LORE_ADMIN_MOCK=1 lore-admin:ci
+          for i in $(seq 1 30); do curl -fs http://127.0.0.1:4800/healthz && exit 0; sleep 1; done
+          docker logs la; exit 1
+
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 10.28.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: |
+          pnpm typecheck
+          pnpm lint
+          pnpm test
+      - name: Install Lore CLI + server (demo)
+        shell: pwsh
+        env:
+          LORE_INSTALL_DIR: ${{ runner.temp }}\lore-bin
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          irm https://raw.githubusercontent.com/EpicGames/lore/main/scripts/install.ps1 | iex
+          $env:LORE_SERVER = 1
+          irm https://raw.githubusercontent.com/EpicGames/lore/main/scripts/install.ps1 | iex
+          "$env:LORE_INSTALL_DIR" | Out-File -FilePath $env:GITHUB_PATH -Append
+      - name: Integration tests (SdkBackend against real Lore)
+        env:
+          LORE_IT_REMOTE: lore://127.0.0.1:41337
+        run: |
+          ./scripts/ci/start-loreserver.ps1
+          pnpm test:it
+      - name: Package (NSIS installer + portable)
+        run: pnpm dist:win:native
+      - name: Smoke-test packaged app (SDK, real server)
+        shell: pwsh
+        env:
+          LORE_ADMIN_SERVERS: "Local=lore://127.0.0.1:41337|http://127.0.0.1:41339/health_check"
+        run: |
+          ./scripts/ci/start-loreserver.ps1
+          node scripts/smoke-desktop.cjs smoke-desktop.png "--exe=dist/win-unpacked/Lore Admin.exe"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: LoreAdmin-windows-x64
+          path: dist/*.exe
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: smoke-screenshots
+          path: smoke-*.png
+          if-no-files-found: ignore
