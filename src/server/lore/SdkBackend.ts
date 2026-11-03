@@ -24,6 +24,8 @@ type Head = { number: number; hash: string; parents: string[] };
 
 /** Lore error 9 = "authentication requires a configured auth endpoint". */
 const NO_AUTH = 9;
+/** Lore error 17 = NotAuthorized ("Not authorized to access repository"). */
+const NOT_AUTHORIZED = 17;
 const LIST_TTL_MS = 15_000;
 
 class KeyedQueue {
@@ -183,7 +185,21 @@ export class SdkBackend implements AdminBackend {
 
   async deleteRepository(s: ServerConn, repo: string): Promise<void> {
     const entry = (await this.listRaw(s, true)).find((r) => r.name === repo);
-    await this.queue.run(`${this.root(s)}/${repo}`, () => this.run(this.sdk.lore.repositoryDelete(this.globals(s), { repositoryUrl: `${this.root(s)}/${repo}` })));
+    try {
+      await this.queue.run(`${this.root(s)}/${repo}`, () => this.run(this.sdk.lore.repositoryDelete(this.globals(s), { repositoryUrl: `${this.root(s)}/${repo}` })));
+    } catch (e) {
+      // Servers up to 0.12.0 allow delete only to the recorded creator, or to a token with
+      // owner/admin. Without authentication the caller has no user id, so it never matches a
+      // creator recorded from an identity. Lore relaxed this after 0.12.0 (rev 1985, 483c96f).
+      if (e instanceof LoreError && e.code === NOT_AUTHORIZED)
+        throw new LoreError(
+          `The server refused to delete ${repo} (not authorized). Only the repository's creator, or a token with owner/admin on it, may delete it. ` +
+            "Lore servers up to 0.12.0 without authentication refuse every delete of a repository created with an identity; newer servers allow it. " +
+            "Upgrade the server, or set an owner/admin token for this server in the console.",
+          e.code,
+        );
+      throw e;
+    }
     this.lists.delete(this.root(s));
     if (entry) await rm(join(this.dataDir, "mirrors", this.serverKey(s), entry.id), { recursive: true, force: true }).catch(() => undefined);
   }

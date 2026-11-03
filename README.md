@@ -19,6 +19,8 @@ It uses the same design as [lore-desktop](https://github.com/wupy36/lore-desktop
 | `p4 opened -a`, `p4 unlock -f` | **Locks**: every lock across branches, filter by owner/path, bulk force-release | `lock query`, `lock release` |
 | Server log / journal | **Audit log**: every change made through the console (who, when, the exact `lore` command), persisted | — |
 
+Known Lore limitation: a released `loreserver` 0.12.0 **without authentication** refuses to delete any repository that was created with an identity, whoever asks (error 17 "Not authorized"). The console says so when it happens. You can fix it by upgrading the server to a build after rev 1985, configuring auth and using an owner/admin token, or leaving the server's identity empty in the console for repositories you'll want to delete.
+
 Not included (Lore has no API for it, or it's out of scope): user/group/permission management (Lore delegates identity to your OIDC provider), server config editing, obliterate, and merges.
 
 ## Run with Docker

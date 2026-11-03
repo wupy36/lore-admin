@@ -117,8 +117,17 @@ run("SdkBackend (real Lore)", () => {
     const r = await b.createRepository(s, name, "made by the console");
     expect(r.name).toBe(name);
     expect(r.description).toBe("made by the console");
-    await b.deleteRepository(s, name);
-    expect((await b.listRepositories(s)).some((x) => x.name === name)).toBe(false);
+    const deleted = await b.deleteRepository(s, name).then(
+      () => true,
+      (e: unknown) => {
+        // Released loreserver 0.12.0 without auth refuses this (see SdkBackend.deleteRepository);
+        // the refusal must be explained and leave the repository in place.
+        expect((e as { code?: number }).code).toBe(17);
+        expect(String((e as Error).message)).toMatch(/owner\/admin token/);
+        return false;
+      },
+    );
+    expect((await b.listRepositories(s)).some((x) => x.name === name)).toBe(!deleted);
   });
 
   it("surfaces Lore errors", async () => {
